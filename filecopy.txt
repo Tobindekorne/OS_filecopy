@@ -1,0 +1,1255 @@
+#include <stdio.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+int main(int argc, char *argv[])
+{
+
+  char buff[128];      //used as a buffer to read a file in 128 Byte chunks for the copy
+  char currentChar[1]; //used as temporary storage when counting the number of characters in the input file
+  int numChars = 0;    //used to count the number of characters in the input file
+  int i;               //used to iterate through the copying process after finding the number of character to traverse
+
+  //open the first file
+  int f1check = open(argv[1], O_RDONLY);
+  if (f1check < 0) {
+    printf("Failed to open file 1\n"); //report an error message if the open was unsuccessful
+    return 1;
+  } else {
+    printf("Success for file 1\n");
+  }
+
+  //open the second file
+  int f2check = open(argv[2], O_WRONLY);
+  if (f2check < 0) {
+    printf("Failed to open file 2\n"); //report an error message if the open was unsuccessful
+    return -1;
+  } else {
+    printf("Success for file 2\n");
+  }
+
+  //count the number of characters in the input file
+  while (read(f1check, currentChar, 1) != '\0') {
+    numChars++;
+  }
+
+  //close the file and report the number of characters
+  //this is to reset the postion for the read to the beginning of the file again
+  close(f1check);
+  printf("The number of characters in the file is: %d\n", numChars);
+  
+  //open the first file again. This time for copying
+  f1check = open (argv[1], O_RDONLY);
+  if (f1check < 0)
+    {
+      printf("Failed to open file 1 the second time.\n"); //report an error message if the open was unsuccessful
+      return -1;
+    } else {
+    printf("Successfully opened file 1 the second time.");
+  }
+
+  //loop through the file reading 128 Byte chunks and writing them to the output file.
+  for (i = 0; i < numChars/128; i++)
+    {
+      //read a chunk of data from the input file
+      if (read(f1check, buff, 128) < 0) {
+	printf("Error reading file1\n"); //report an error message if the read was unsuccessful
+	return -1;
+      }else {
+	printf("Read successful\n");
+      }
+      //then write that chunk to the output file
+      if (write(f2check, buff, 128) < 0) {
+	printf("Error writing to file2\n"); //report an error message if the write was unsuccessful
+	return -1;
+      } else {
+	printf("Write successful\n");
+      }
+    }
+
+  //the previous loop will leave some characters uncopied if the length of the file is not
+  //a multiple of 256 Bytes
+  //to deal with any remaining characters we execute the following:
+  //first, read a chunk
+  if (read(f1check, buff, numChars % 128) < 0) {
+    printf("Error reading the end of file 1\n"); //report an error message if the read was unsuccessful
+    return -1;
+  } else {
+    printf("success reading end of file 1!\n");
+  }
+  //then, write that chunk to the ouput file
+  if (write(f2check, buff, numChars % 128) < 0) {
+    printf("error writing to the end of file 2.\n"); //report an error message if the write was unsuccessful
+    return -1;
+  } else {
+    printf("Success writing to the end of file 2\n");
+  }
+
+  //finally, close both files
+  close(f1check);
+  close(f2check);
+  
+  return 0;
+}
+
+
+
+I then ran strace with the command strace ./filecpy sampletext.txt sampletextcopy.txt
+
+
+execve("./filecopy", ["./filecopy", "sampletext.txt", "sampletextcopy.txt"], [/* 37 vars */]) = 0
+brk(NULL)                               = 0x224f000
+mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fb7af1f7000
+access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+open("/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=124654, ...}) = 0
+mmap(NULL, 124654, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7fb7af1d8000
+close(3)                                = 0
+open("/lib64/libstdc++.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\200\270\10\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=1590720, ...}) = 0
+mmap(NULL, 3699296, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7fb7aec4c000
+mprotect(0x7fb7aedc4000, 2097152, PROT_NONE) = 0
+mmap(0x7fb7aefc4000, 49152, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x178000) = 0x7fb7aefc4000
+mmap(0x7fb7aefd0000, 12896, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7fb7aefd0000
+close(3)                                = 0
+open("/lib64/libm.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0 W\0\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=1169408, ...}) = 0
+mmap(NULL, 3178728, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7fb7ae943000
+mprotect(0x7fb7aea4b000, 2093056, PROT_NONE) = 0
+mmap(0x7fb7aec4a000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x107000) = 0x7fb7aec4a000
+close(3)                                = 0
+open("/lib64/libgcc_s.so.1", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\240*\0\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=92872, ...}) = 0
+mmap(NULL, 2188336, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7fb7ae72c000
+mprotect(0x7fb7ae742000, 2093056, PROT_NONE) = 0
+mmap(0x7fb7ae941000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x15000) = 0x7fb7ae941000
+close(3)                                = 0
+open("/lib64/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0 \5\2\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=2115824, ...}) = 0
+mmap(NULL, 3955040, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7fb7ae366000
+mprotect(0x7fb7ae523000, 2093056, PROT_NONE) = 0
+mmap(0x7fb7ae722000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1bc000) = 0x7fb7ae722000
+mmap(0x7fb7ae728000, 14688, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7fb7ae728000
+close(3)                                = 0
+mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fb7af1d6000
+mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fb7af1d4000
+arch_prctl(ARCH_SET_FS, 0x7fb7af1d7600) = 0
+mprotect(0x7fb7ae722000, 16384, PROT_READ) = 0
+mprotect(0x7fb7ae941000, 4096, PROT_READ) = 0
+mprotect(0x7fb7aec4a000, 4096, PROT_READ) = 0
+mprotect(0x7fb7aefc4000, 40960, PROT_READ) = 0
+mprotect(0x600000, 4096, PROT_READ)     = 0
+mprotect(0x7fb7af1f9000, 4096, PROT_READ) = 0
+munmap(0x7fb7af1d8000, 124654)          = 0
+brk(NULL)                               = 0x224f000
+brk(0x2281000)                          = 0x2281000
+open("sampletext.txt", O_RDONLY)        = 3
+fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(136, 4), ...}) = 0
+write(1, "Success for file 1\n", 19Success for file 1
+)    = 19
+open("sampletextcopy.txt", O_WRONLY)    = -1 ENOENT (No such file or directory)
+write(1, "Failed to open file 2\n", 22Failed to open file 2
+) = 22
+exit_group(-1)                          = ?
++++ exited with 255 +++
+porygon@encom ~/D/toby> ls -a
+./  ../  filecopy*  filecopy.c  sampletext.txt
+porygon@encom ~/D/toby> g++ -o filecopy filecopy.c 
+porygon@encom ~/D/toby> ls
+filecopy*  filecopy.c  sampletext.txt
+porygon@encom ~/D/toby> ls -a
+./  ../  filecopy*  filecopy.c  sampletext.txt
+porygon@encom ~/D/toby> strace ./filecopy sampletext.txt sampletextcopy.txt | straceOutput.txt
+fish: straceOutput.txt: コマンドが見つかりませんでした...
+fish: strace ./filecopy sampletext.txt sampletextcopy.txt | straceOutput.txt
+                                                            ^
+porygon@encom ~/D/toby> ls -
+ls: '-' にアクセスできません: No such file or directory
+porygon@encom ~/D/toby> ls -a
+./  ../  filecopy*  filecopy.c  sampletext.txt
+porygon@encom ~/D/toby> nano straceOutput.txt
+porygon@encom ~/D/toby> strace ./filecopy sampletext.txt sampletextcopy.txt | straceOutput.txt
+fish: straceOutput.txt: コマンドが見つかりませんでした...
+fish: strace ./filecopy sampletext.txt sampletextcopy.txt | straceOutput.txt
+                                                            ^
+porygon@encom ~/D/toby> ls -a
+./  ../  filecopy*  filecopy.c  sampletext.txt  straceOutput.txt
+porygon@encom ~/D/toby> nano straceOutput.txt
+porygon@encom ~/D/toby> nano sampletextcopy.txt
+porygon@encom ~/D/toby> strace ./filecopy sampletext.txt sampletextcopy.txt | straceOutput.txt
+fish: straceOutput.txt: コマンドが見つかりませんでした...
+fish: strace ./filecopy sampletext.txt sampletextcopy.txt | straceOutput.txt
+                                                            ^
+porygon@encom ~/D/toby> strace ./filecopy sampletext.txt sampletextcopy.txt
+execve("./filecopy", ["./filecopy", "sampletext.txt", "sampletextcopy.txt"], [/* 37 vars */]) = 0
+brk(NULL)                               = 0x212b000
+mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fe783fdb000
+access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+open("/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=124654, ...}) = 0
+mmap(NULL, 124654, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7fe783fbc000
+close(3)                                = 0
+open("/lib64/libstdc++.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\200\270\10\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=1590720, ...}) = 0
+mmap(NULL, 3699296, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7fe783a30000
+mprotect(0x7fe783ba8000, 2097152, PROT_NONE) = 0
+mmap(0x7fe783da8000, 49152, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x178000) = 0x7fe783da8000
+mmap(0x7fe783db4000, 12896, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7fe783db4000
+close(3)                                = 0
+open("/lib64/libm.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0 W\0\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=1169408, ...}) = 0
+mmap(NULL, 3178728, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7fe783727000
+mprotect(0x7fe78382f000, 2093056, PROT_NONE) = 0
+mmap(0x7fe783a2e000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x107000) = 0x7fe783a2e000
+close(3)                                = 0
+open("/lib64/libgcc_s.so.1", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\240*\0\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=92872, ...}) = 0
+mmap(NULL, 2188336, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7fe783510000
+mprotect(0x7fe783526000, 2093056, PROT_NONE) = 0
+mmap(0x7fe783725000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x15000) = 0x7fe783725000
+close(3)                                = 0
+open("/lib64/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0 \5\2\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=2115824, ...}) = 0
+mmap(NULL, 3955040, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7fe78314a000
+mprotect(0x7fe783307000, 2093056, PROT_NONE) = 0
+mmap(0x7fe783506000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1bc000) = 0x7fe783506000
+mmap(0x7fe78350c000, 14688, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7fe78350c000
+close(3)                                = 0
+mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fe783fba000
+mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fe783fb8000
+arch_prctl(ARCH_SET_FS, 0x7fe783fbb600) = 0
+mprotect(0x7fe783506000, 16384, PROT_READ) = 0
+mprotect(0x7fe783725000, 4096, PROT_READ) = 0
+mprotect(0x7fe783a2e000, 4096, PROT_READ) = 0
+mprotect(0x7fe783da8000, 40960, PROT_READ) = 0
+mprotect(0x600000, 4096, PROT_READ)     = 0
+mprotect(0x7fe783fdd000, 4096, PROT_READ) = 0
+munmap(0x7fe783fbc000, 124654)          = 0
+brk(NULL)                               = 0x212b000
+brk(0x215d000)                          = 0x215d000
+open("sampletext.txt", O_RDONLY)        = 3
+fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(136, 4), ...}) = 0
+write(1, "Success for file 1\n", 19Success for file 1
+)    = 19
+open("sampletextcopy.txt", O_WRONLY)    = 4
+write(1, "Success for file 2\n", 19Success for file 2
+)    = 19
+read(3, "L", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, ",", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "g", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, ".", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "C", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, ",", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, ".", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "C", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "b", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, ",", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "b", 1)                         = 1
+read(3, "h", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "q", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, ".", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "U", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "g", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, ",", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "h", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, ",", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "q", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, ",", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "g", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "q", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "f", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "g", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "q", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, ".", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "N", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, ",", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, ".", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "S", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "b", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, ".", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "A", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "f", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "b", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "b", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "b", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "b", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "b", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, ".", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "C", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, ",", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, ",", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "b", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, ",", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "f", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "b", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "q", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "q", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, ".", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "F", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, ".", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "M", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "b", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, ",", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "g", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "q", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "b", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, ",", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, ",", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "q", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, ".", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "N", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, ",", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, ".", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "V", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "b", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "f", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "b", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "o", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "b", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "C", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, ";", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "S", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "g", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, ".", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "S", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "f", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, ".", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "N", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "r", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, ".", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "N", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "b", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, "a", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "d", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "n", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "m", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "v", 1)                         = 1
+read(3, "e", 1)                         = 1
+read(3, "l", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "u", 1)                         = 1
+read(3, "s", 1)                         = 1
+read(3, "c", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "p", 1)                         = 1
+read(3, "i", 1)                         = 1
+read(3, "t", 1)                         = 1
+read(3, ".", 1)                         = 1
+read(3, " ", 1)                         = 1
+read(3, "\n", 1)                        = 1
+read(3, "", 1)                          = 0
+close(3)                                = 0
+write(1, "The number of characters in the "..., 45The number of characters in the file is: 953
+) = 45
+open("sampletext.txt", O_RDONLY)        = 3
+read(3, "Lorem ipsum dolor sit amet, cons"..., 128) = 128
+write(1, "Successfully opened file 1 the s"..., 59Successfully opened file 1 the second time.Read successful
+) = 59
+write(4, "Lorem ipsum dolor sit amet, cons"..., 128) = 128
+write(1, "Write successful\n", 17Write successful
+)      = 17
+read(3, "tus consectetur, eu varius nibh "..., 128) = 128
+write(1, "Read successful\n", 16Read successful
+)       = 16
+write(4, "tus consectetur, eu varius nibh "..., 128) = 128
+write(1, "Write successful\n", 17Write successful
+)      = 17
+read(3, "nim felis eget quam. Nunc pulvin"..., 128) = 128
+write(1, "Read successful\n", 16Read successful
+)       = 16
+write(4, "nim felis eget quam. Nunc pulvin"..., 128) = 128
+write(1, "Write successful\n", 17Write successful
+)      = 17
+read(3, "enean finibus bibendum bibendum."..., 128) = 128
+write(1, "Read successful\n", 16Read successful
+)       = 16
+write(4, "enean finibus bibendum bibendum."..., 128) = 128
+write(1, "Write successful\n", 17Write successful
+)      = 17
+read(3, "ue aliquam orci. Fusce volutpat "..., 128) = 128
+write(1, "Read successful\n", 16Read successful
+)       = 16
+write(4, "ue aliquam orci. Fusce volutpat "..., 128) = 128
+write(1, "Write successful\n", 17Write successful
+)      = 17
+read(3, "cus, a scelerisque nisi elit vit"..., 128) = 128
+write(1, "Read successful\n", 16Read successful
+)       = 16
+write(4, "cus, a scelerisque nisi elit vit"..., 128) = 128
+write(1, "Write successful\n", 17Write successful
+)      = 17
+read(3, "m primis in faucibus orci luctus"..., 128) = 128
+write(1, "Read successful\n", 16Read successful
+)       = 16
+write(4, "m primis in faucibus orci luctus"..., 128) = 128
+write(1, "Write successful\n", 17Write successful
+)      = 17
+read(3, "venenatis erat. Nunc lacinia bla"..., 57) = 57
+write(1, "success reading end of file 1!\n", 31success reading end of file 1!
+) = 31
+write(4, "venenatis erat. Nunc lacinia bla"..., 57) = 57
+write(1, "Success writing to the end of fi"..., 37Success writing to the end of file 2
+) = 37
+close(3)                                = 0
+close(4)                                = 0
+exit_group(0)                           = ?
++++ exited with 0 +++
